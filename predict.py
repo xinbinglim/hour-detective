@@ -70,29 +70,35 @@ def main():
 
     cat_cols = both.select_dtypes(include="category").columns.tolist()
     both_cat = both.copy()
-
     for c in cat_cols:
         both_cat[c] = both_cat[c].astype(object).fillna("missing").astype(str)
 
     X_tr, X_te = both.loc["train"], both.loc["test"]
     Xc_tr, Xc_te = both_cat.loc["train"], both_cat.loc["test"]
 
-    lgb_model = lgb.LGBMRegressor(**BEST_LGB, subsample_freq=1, random_state=42, verbose=-1)
-    xgb_model = xgb.XGBRegressor(
-        n_estimators=800, learning_rate=0.03, max_depth=6,
-        subsample=0.8, colsample_bytree=0.8,
-        enable_categorical=True, tree_method="hist", random_state=42
-    )
-    cat_model = CatBoostRegressor(
-        iterations=1500, learning_rate=0.03, depth=6,
-        cat_features=cat_cols, random_seed=seed, thread_count=-1,
-        verbose=0, allow_writing_files=False)
+    SEEDS = [42, 1, 2]
+    preds = []
+    for seed in SEEDS:
+        lgb_model = lgb.LGBMRegressor(**BEST_LGB, subsample_freq=1, random_state=seed, verbose=-1)
+        xgb_model = xgb.XGBRegressor(
+            n_estimators=800, learning_rate=0.03, max_depth=6,
+            subsample=0.8, colsample_bytree=0.8,
+            enable_categorical=True, tree_method="hist", random_state=seed)
+        cat_model = CatBoostRegressor(
+            iterations=600, learning_rate=0.06, depth=6,
+            cat_features=cat_cols, random_seed=seed, thread_count=-1,
+            verbose=0, allow_writing_files=False)
 
-    lgb_model.fit(X_tr, y)
-    xgb_model.fit(X_tr, y)
-    cat_model.fit(Xc_tr, y)
+        lgb_model.fit(X_tr, y)
+        xgb_model.fit(X_tr, y)
+        cat_model.fit(Xc_tr, y)
 
-    pred_log = (lgb_model.predict(X_te) + xgb_model.predict(X_te) + cat_model.predict(Xc_te)) / 3
+        preds.append(lgb_model.predict(X_te))
+        preds.append(xgb_model.predict(X_te))
+        preds.append(cat_model.predict(Xc_te))
+        print(f"Seed {seed} done ({time.perf_counter() - START:.1f} s so far)")
+
+    pred_log = np.mean(preds, axis=0)
     pred_hours = np.expm1(pred_log).clip(0, 140.7)
 
     out = pd.DataFrame({"project_id": test["project_id"], "hours_spent": pred_hours})
