@@ -84,8 +84,8 @@ def main():
         enable_categorical=True, tree_method="hist", random_state=42
     )
     cat_model = CatBoostRegressor(
-        iterations=600, learning_rate=0.06, depth=6,
-        cat_features=cat_cols, random_seed=42, thread_count=-1,
+        iterations=1500, learning_rate=0.03, depth=6,
+        cat_features=cat_cols, random_seed=seed, thread_count=-1,
         verbose=0, allow_writing_files=False)
 
     lgb_model.fit(X_tr, y)
