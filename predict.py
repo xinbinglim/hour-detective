@@ -55,6 +55,12 @@ BEST_LGB = {
         "colsample_bytree": 0.5828255385942684, "reg_lambda": 0.002402089003977252,
 }
 
+BEST_XGB = {
+    "n_estimators": 814, "learning_rate": 0.010311069581219252, "max_depth": 9,
+    "min_child_weight": 7.614778905496447, "subsample": 0.5864764800801583,
+    "colsample_bytree": 0.3503811143222532, "reg_lambda": 0.024691999110864553,
+}
+
 def main():
     train = pd.read_csv(HERE / "train.csv")
     test = pd.read_csv(HERE / "test.csv")
@@ -77,13 +83,11 @@ def main():
     Xc_tr, Xc_te = both_cat.loc["train"], both_cat.loc["test"]
 
     SEEDS = [42, 1, 2]
-    preds = []
+    lgb_preds, xgb_preds, cat_preds = [], [], []
     for seed in SEEDS:
         lgb_model = lgb.LGBMRegressor(**BEST_LGB, subsample_freq=1, random_state=seed, verbose=-1)
-        xgb_model = xgb.XGBRegressor(
-            n_estimators=800, learning_rate=0.03, max_depth=6,
-            subsample=0.8, colsample_bytree=0.8,
-            enable_categorical=True, tree_method="hist", random_state=seed)
+        xgb_model = xgb.XGBRegressor(**BEST_XGB, enable_categorical=True,
+                                     tree_method="hist", random_state=seed)
         cat_model = CatBoostRegressor(
             iterations=600, learning_rate=0.06, depth=6,
             cat_features=cat_cols, random_seed=seed, thread_count=-1,
@@ -93,13 +97,14 @@ def main():
         xgb_model.fit(X_tr, y)
         cat_model.fit(Xc_tr, y)
 
-        preds.append(lgb_model.predict(X_te))
-        preds.append(xgb_model.predict(X_te))
-        preds.append(cat_model.predict(Xc_te))
+        lgb_preds.append(lgb_model.predict(X_te))
+        xgb_preds.append(xgb_model.predict(X_te))
+        cat_preds.append(cat_model.predict(Xc_te))
         print(f"Seed {seed} done ({time.perf_counter() - START:.1f} s so far)")
 
-    pred_log = np.mean(preds, axis=0)
-    pred_hours = np.expm1(pred_log).clip(0, 140.7)
+    pred_log = (0.5 * np.mean(xgb_preds, axis=0)
+              + 0.3 * np.mean(lgb_preds, axis=0)
+              + 0.2 * np.mean(cat_preds, axis=0))
 
     out = pd.DataFrame({"project_id": test["project_id"], "hours_spent": pred_hours})
     out.to_csv(HERE / "predictions.csv", index=False)
