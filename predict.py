@@ -105,7 +105,8 @@ def main():
     pred_log = (0.5 * np.mean(xgb_preds, axis=0)
               + 0.3 * np.mean(lgb_preds, axis=0)
               + 0.2 * np.mean(cat_preds, axis=0))
-
+    pred_hours = np.expm1(pred_log).clip(0, 140.7)
+    
     out = pd.DataFrame({"project_id": test["project_id"], "hours_spent": pred_hours})
     out.to_csv(HERE / "predictions.csv", index=False)
     print(f"Wrote {len(out)} predictions in {time.perf_counter() - START:.1f} seconds")
