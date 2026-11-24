@@ -68,7 +68,7 @@ def main():
     bool_cols = both.select_dtypes(include="bool").columns
     both = both.astype({c: int for c in bool_cols})
 
-    cat_cols = both.select_dytpes(include="category").columns.tolist()
+    cat_cols = both.select_dtypes(include="category").columns.tolist()
     both_cat = both.copy()
 
     for c in cat_cols:
@@ -93,7 +93,7 @@ def main():
     cat_model.fit(Xc_tr, y)
 
     pred_log = (lgb_model.predict(X_te) + xgb_model.predict(X_te) + cat_model.predict(Xc_te)) / 3
-    pred_hours = np.expm1(pred_log).clip(0, 140,7)
+    pred_hours = np.expm1(pred_log).clip(0, 140.7)
 
     out = pd.DataFrame({"project_id": test["project_id"], "hours_spent": pred_hours})
     out.to_csv(HERE / "predictions.csv", index=False)
