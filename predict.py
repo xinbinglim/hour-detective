@@ -1,0 +1,103 @@
+import time
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import lightgbm as lgb
+import xgboost as xgb
+from catboost import CatBoostRegressor
+
+START = time.perf_counter()
+HERE = Path(__file__).resolve().parent
+LABELS = ["hours_spent", "log_hours", "hours_bucket"]
+
+def add_features(df):
+    df = df.copy()
+    df["biggest_commit_share"] = df["max_lines_in_one_commit"] / df["lines_added_total"].replace(0, np.nan)
+    df["lines_per_active_day"] = df["lines_of_code"] / df["active_commit_days"].replace(0, np.nan)
+    df["commits_per_active_day"] = df["num_commits"] / df["active_commit_days"].replace(0, np.nan)
+    df["active_day_ratio"] = df["active_commit_days"] / (df["project_span_days"] + 1)
+    return df
+
+ORDER_MAPS = {
+    "author_prior_projects":     {"0": 0, "1-2": 1, "3-5": 2, "6+": 3},
+    "author_account_age_years":  {"<1": 0, "1-2": 1, "3-5": 2, "6+": 3},
+}
+def encode_ordered(df):
+    df = df.copy()
+    for col, mapping in ORDER_MAPS.items():
+        df[col] = df[col].astype(str).map(mapping)
+    return df
+
+def encode_yes_no(df):
+    df = df.copy()
+    for col in df.select_dtypes(include="object").columns:
+        values = set(df[col].dropna().astype(str).unique())
+        if values <= {"True", "False"}:
+            df[col] = df[col].astype(str).map({"True": 1.0, "False": 0.0})
+    return df
+
+def encode_categories(df):
+    df = df.copy()
+    for col in df.select_dtypes(include="object").columns:
+        df[col] = df[col].astype("category")
+    return df
+
+def prepare(df):
+    df = add_features(df)
+    df = encode_ordered(df)
+    df = encode_yes_no(df)
+    df = encode_categories(df)
+    return df
+
+BEST_LGB = {
+    "n_estimators": 865, "learning_rate": 0.012964449902814406, "num_leaves": 35,
+        "min_child_samples": 11, "subsample": 0.870297694890708,
+        "colsample_bytree": 0.5828255385942684, "reg_lambda": 0.002402089003977252,
+}
+
+def main():
+    train = pd.read_csv(HERE / "train.csv")
+    test = pd.read_csv(HERE / "test.csv")
+
+    y = np.log1p(train["hours_spent"])
+    X_train = train.drop(columns=LABELS + ["project_id"])
+    X_test = test.drop(columns=LABELS + ["project_id"], errors="ignore")
+
+    both = pd.concat([X_train, X_test], keys=["train", "test"])
+    both = prepare(both)
+    bool_cols = both.select_dtypes(include="bool").columns
+    both = both.astype({c: int for c in bool_cols})
+
+    cat_cols = both.select_dytpes(include="category").columns.tolist()
+    both_cat = both.copy()
+
+    for c in cat_cols:
+        both_cat[c] = both_cat[c].astype(object).fillna("missing").astype(str)
+
+    X_tr, X_te = both.loc["train"], both.loc["test"]
+    Xc_tr, Xc_te = both_cat.loc["train"], both_cat.loc["test"]
+
+    lgb_model = lgb.LGBMRegressor(**BEST_LGB, subsample_freq=1, random_state=42, verbose=-1)
+    xgb_model = xgb.XGBRegressor(
+        n_estimators=800, learning_rate=0.03, max_depth=6,
+        subsample=0.8, colsample_bytree=0.8,
+        enable_categorical=True, tree_method="hist", random_state=42
+    )
+    cat_model = CatBoostRegressor(
+        iterations=600, learning_rate=0.06, depth=6,
+        cat_features=cat_cols, random_seed=42, thread_count=-1,
+        verbose=0, allow_writing_files=False)
+
+    lgb_model.fit(X_tr, y)
+    xgb_model.fit(X_tr, y)
+    cat_model.fit(Xc_tr, y)
+
+    pred_log = (lgb_model.predict(X_te) + xgb_model.predict(X_te) + cat_model.predict(Xc_te)) / 3
+    pred_hours = np.expm1(pred_log).clip(0, 140,7)
+
+    out = pd.DataFrame({"project_id": test["project_id"], "hours_spent": pred_hours})
+    out.to_csv(HERE / "predictions.csv", index=False)
+    print(f"Wrote {len(out)} predictions in {time.perf_counter() - START:.1f} seconds")
+
+if __name__ == "__main__":
+    main()
