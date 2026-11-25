@@ -61,6 +61,11 @@ BEST_XGB = {
     "colsample_bytree": 0.3503811143222532, "reg_lambda": 0.024691999110864553,
 }
 
+BEST_CAT = {
+    "iterations": 849, "learning_rate": 0.037576200996845, "depth": 8,
+    "l2_leaf_reg": 2.7913342621237325, "random_strength": 1.100700356059648,
+}
+
 def main():
     train = pd.read_csv(HERE / "train.csv")
     test = pd.read_csv(HERE / "test.csv")
@@ -88,10 +93,8 @@ def main():
         lgb_model = lgb.LGBMRegressor(**BEST_LGB, subsample_freq=1, random_state=seed, verbose=-1)
         xgb_model = xgb.XGBRegressor(**BEST_XGB, enable_categorical=True,
                                      tree_method="hist", random_state=seed)
-        cat_model = CatBoostRegressor(
-            iterations=600, learning_rate=0.06, depth=6,
-            cat_features=cat_cols, random_seed=seed, thread_count=-1,
-            verbose=0, allow_writing_files=False)
+        cat_model = CatBoostRegressor(**BEST_CAT, cat_features=cat_cols, random_seed=seed,
+                                      thread_count=-1, verbose=0, allow_writing_files=False)
 
         lgb_model.fit(X_tr, y)
         xgb_model.fit(X_tr, y)
