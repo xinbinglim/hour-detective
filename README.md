@@ -23,6 +23,8 @@ It takes about 105 seconds on my PC (CPU only).
 Each is trained with 3 random seeds and averaged.
 Final prediction = 0.5 × XGBoost + 0.3 × LightGBM + 0.2 × CatBoost.
 
+Target encoding: CV 0.6546 → 0.6568, slightly worse. 
+
 ## Results (RMSLE, lower is better)
 
 | Version | CV score |
