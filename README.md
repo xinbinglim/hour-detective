@@ -46,3 +46,7 @@ Stretching the final predictions with a linear fit: worse.
 | #2 | 3-seed averaging | 0.7510 |
 | #3 | Tuned XGBoost + weighted blend | 0.7487 |
 | #4 | Tuned CatBoost | 0.7487 |
+| #5 | Shipped Failed | - |
+| #6 | Removed clues that grow over time | 0.7476 |
+| #7 | Shift probe: all predictions +0.1 (log1p) | 0.7682 |
+| #8 | Shift probe: all predictions −0.1 (log1p) | **0.7401** |

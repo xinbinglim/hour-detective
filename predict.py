@@ -12,7 +12,7 @@ LABELS = ["hours_spent", "log_hours", "hours_bucket"]
 TIME_COLS = ["stars", "forks", "num_issues", "num_pull_requests",
              "num_releases", "author_account_age_years"]
 SHIFT = -0.1
-
+SCALE = 0.9
 
 def add_features(df):
     df = df.copy()
@@ -114,6 +114,8 @@ def main():
               + 0.3 * np.mean(lgb_preds, axis=0)
               + 0.2 * np.mean(cat_preds, axis=0))
     pred_log = pred_log + SHIFT
+    center = pred_log.mean()
+    pred_log = center + SCALE * (pred_log - center)
     pred_hours = np.expm1(pred_log).clip(0, 140.7)
     
     out = pd.DataFrame({"project_id": test["project_id"], "hours_spent": pred_hours})
