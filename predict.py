@@ -9,6 +9,9 @@ from catboost import CatBoostRegressor
 START = time.perf_counter()
 HERE = Path(__file__).resolve().parent
 LABELS = ["hours_spent", "log_hours", "hours_bucket"]
+TIME_COLS = ["stars", "forks", "num_issues", "num_pull_requests",
+             "num_releases", "author_account_age_years"]
+
 
 def add_features(df):
     df = df.copy()
@@ -25,7 +28,8 @@ ORDER_MAPS = {
 def encode_ordered(df):
     df = df.copy()
     for col, mapping in ORDER_MAPS.items():
-        df[col] = df[col].astype(str).map(mapping)
+        if col in df.columns:
+            df[col] = df[col].astype(str).map(mapping)
     return df
 
 def encode_yes_no(df):
@@ -71,8 +75,8 @@ def main():
     test = pd.read_csv(HERE / "test.csv")
 
     y = np.log1p(train["hours_spent"])
-    X_train = train.drop(columns=LABELS + ["project_id"])
-    X_test = test.drop(columns=LABELS + ["project_id"], errors="ignore")
+    X_train = train.drop(columns=LABELS + ["project_id"] + TIME_COLS)
+    X_test = test.drop(columns=LABELS + ["project_id"] + TIME_COLS, errors="ignore")
 
     both = pd.concat([X_train, X_test], keys=["train", "test"])
     both = prepare(both)

@@ -30,14 +30,19 @@ Stretching the final predictions with a linear fit: worse.
 
 | Version | CV score |
 |---|---|
-| Baseline | 0.9623 |
-| LightGBM (tuned, with 4 features) | 0.6554 |
-| XGBoost (tuned (3 seeds)) | 0.6525 |
-| Equal blend of LGB + XGB + Cat | 0.6532 |
-| **Final: weighted blend, 3 seeds** | **0.6524** |
+| Same guess for every project | 0.9623 |
+| LightGBM, default-ish settings | 0.6643 |
+| LightGBM tuned, without my 4 features | 0.6623 |
+| LightGBM tuned, with my 4 features | 0.6554 |
+| Equal blend of LightGBM + XGBoost + CatBoost | 0.6532 |
+| Same blend, 3 seeds each (more stable) | 0.6536 |
+| XGBoost tuned with Optuna (3 seeds) | 0.6525 |
+| Weighted blend, 3 seeds | 0.6524 |
+| **CatBoost tuned with Optuna** | **0.6519** |
 
 | Ship | Change | Live RMSLE |
 |---|---|---|
 | #1 | Blend of 3 models | 0.7549 |
 | #2 | 3-seed averaging | 0.7510 |
 | #3 | Tuned XGBoost + weighted blend | 0.7487 |
+| #4 | Tuned CatBoost | 0.7487 |
