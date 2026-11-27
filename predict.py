@@ -11,7 +11,7 @@ HERE = Path(__file__).resolve().parent
 LABELS = ["hours_spent", "log_hours", "hours_bucket"]
 TIME_COLS = ["stars", "forks", "num_issues", "num_pull_requests",
              "num_releases", "author_account_age_years"]
-SHIFT = 0.1
+SHIFT = -0.1
 
 
 def add_features(df):
